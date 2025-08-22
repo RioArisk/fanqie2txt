@@ -5,6 +5,90 @@
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
 
+        /* --- Validation Styles --- */
+        .input-with-status {
+            position: relative;
+            display: block;
+        }
+
+        #url {
+            width: 100%;
+            padding-right: 50px; /* Make room for the icon */
+        }
+
+        #url-status-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3; /* Light grey */
+            border-top: 3px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #url-status-icon.success::after {
+            content: '✔';
+            color: #2ecc71;
+            font-size: 24px;
+        }
+
+        #url-status-icon.error::after {
+            content: '✖';
+            color: #e74c3c;
+            font-size: 24px;
+        }
+
+        #url-status-icon.warning::after {
+            content: '⚠';
+            color: #f39c12;
+            font-size: 24px;
+        }
+
+        #url-validation-message {
+            text-align: left;
+            margin-top: -10px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: none; /* Hidden by default */
+        }
+
+        #url-validation-message.success {
+            color: #27ae60;
+            background-color: #eafaf1;
+        }
+
+        #url-validation-message.error {
+            color: #c0392b;
+            background-color: #fbeae5;
+        }
+
+        #url-validation-message.warning {
+            color: #d35400;
+            background-color: #fef5e7;
+        }
+        /* --- End Validation Styles --- */
+
+
         body {
             font-family: 'Noto Sans SC', sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -163,7 +247,11 @@
         <h1>番茄小说下载器</h1>
         <form id="download-form">
             <label for="url">输入小说页面URL:</label>
-            <input type="text" id="url" name="url" value="https://fanqienovel.com/page/7207072067127086118" required>
+            <div class="input-with-status">
+                <input type="text" id="url" name="url" required>
+                <div id="url-status-icon"></div>
+            </div>
+            <div id="url-validation-message"></div>
 
             <label for="token">SVIP Token (可选):</label>
             <input type="text" id="token" name="token" placeholder="输入你的SVIP Token">
@@ -192,6 +280,64 @@
     </div>
 
     <script>
+                // --- URL Validation Logic ---
+        const urlInput = document.getElementById('url');
+        const statusIcon = document.getElementById('url-status-icon');
+        const validationMessage = document.getElementById('url-validation-message');
+        let validationTimeout;
+
+        urlInput.addEventListener('input', function() {
+            clearTimeout(validationTimeout);
+            statusIcon.className = '';
+            statusIcon.innerHTML = '';
+            validationMessage.style.display = 'none';
+
+            const url = urlInput.value.trim();
+            if (url === '') {
+                return;
+            }
+            
+            // Show loader
+            statusIcon.innerHTML = '<div class="loader"></div>';
+
+            validationTimeout = setTimeout(() => {
+                validateUrl(url);
+            }, 800); // Debounce for 800ms
+        });
+
+        async function validateUrl(url) {
+            try {
+                const response = await fetch('/validate-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+                const result = await response.json();
+
+                statusIcon.innerHTML = ''; // Clear loader
+                statusIcon.className = result.status; // success, error, or warning
+                
+                validationMessage.className = result.status;
+                validationMessage.style.display = 'block';
+
+                if (result.status === 'success') {
+                    validationMessage.innerHTML = `<b>${result.data.novel_name}</b><br>${result.data.last_chapter} (${result.data.update_time})`;
+                } else {
+                    validationMessage.textContent = result.message;
+                }
+
+            } catch (error) {
+                statusIcon.innerHTML = '';
+                statusIcon.className = 'error';
+                validationMessage.className = 'error';
+                validationMessage.textContent = '请求校验时出错，请检查网络连接。';
+                validationMessage.style.display = 'block';
+            }
+        }
+
+        // --- Download Logic ---
         document.getElementById('download-form').addEventListener('submit', function(event) {
             event.preventDefault(); // Prevent the default form submission
 
@@ -229,7 +375,11 @@
                 const data = JSON.parse(event.data);
 
                 if (data.error) {
-                    statusText.textContent = `错误: ${data.message}`;
+                    let errorMessage = `错误: ${data.message}`;
+                    if (data.error === 'CAPTCHA' && data.url) {
+                        errorMessage += ` <a href="${data.url}" target="_blank">点击此处在新标签页中完成验证</a>`;
+                    }
+                    statusText.innerHTML = errorMessage;
                     progressBar.style.backgroundColor = '#e74c3c'; // Red for error
                     eventSource.close();
                     resetUI();

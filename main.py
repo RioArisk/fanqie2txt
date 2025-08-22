@@ -58,7 +58,17 @@ def get_chapter_list(novel_url, token=None):
     Gets the list of chapters and their URLs from a novel's main page.
     """
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+        'Accept': '*/*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,en-GB;q=0.6,da;q=0.5',
+        'Origin': 'https://fanqienovel.com',
+        'Referer': 'https://fanqienovel.com/',
+        'Sec-Ch-Ua': '"Not;A=Brand";v="99", "Microsoft Edge";v="139", "Chromium";v="139"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0',
     }
 
     response = requests.get(url=novel_url, headers=headers)
@@ -82,14 +92,74 @@ def get_chapter_list(novel_url, token=None):
 
     return novel_name, chapter_list
 
+def validate_novel_url(novel_url):
+    """
+    Validates a novel URL by fetching its title and latest chapter info.
+    Returns a dictionary with status and data.
+    """
+    headers = {
+        'Accept': '*/*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,en-GB;q=0.6,da;q=0.5',
+        'Origin': 'https://fanqienovel.com',
+        'Referer': 'https://fanqienovel.com/',
+        'Sec-Ch-Ua': '"Not;A=Brand";v="99", "Microsoft Edge";v="139", "Chromium";v="139"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0',
+    }
+
+    try:
+        response = requests.get(url=novel_url, headers=headers, timeout=10)
+        response.raise_for_status() # Raise an exception for bad status codes
+        response.encoding = 'utf-8'
+        html = response.text
+        selector = parsel.Selector(html)
+
+        # Check for captcha page first
+        if "验证码中间页" in selector.css('title::text').get(''):
+            return {"status": "captcha", "message": "请求为验证码中间页，url合理性未经审查"}
+
+        novel_name = selector.css('.info-name h1::text').get()
+        # Get all text parts and join them to handle cases where the chapter name is in a separate node
+        last_chapter_parts = selector.css('.info-last .info-last-title *::text').getall()
+        last_chapter_title = ''.join(last_chapter_parts) if last_chapter_parts else selector.css('.info-last .info-last-title::text').get()
+        last_chapter_time = selector.css('.info-last .info-last-time::text').get()
+
+        if novel_name and last_chapter_title and last_chapter_time:
+            return {
+                "status": "success",
+                "data": {
+                    "novel_name": novel_name.strip(),
+                    "last_chapter": last_chapter_title.strip(),
+                    "update_time": last_chapter_time.strip()
+                }
+            }
+        else:
+            return {"status": "error", "message": "URL不合法或无法解析页面元素"}
+
+    except requests.exceptions.RequestException as e:
+        return {"status": "error", "message": f"请求失败: {e}"}
+
 def download_chapter(url, novel_url, token=None):
     """
     Downloads a single chapter by scraping the public webpage.
     If a token is provided, it's used as a cookie to potentially bypass captchas or access restricted content.
     """
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Referer': novel_url
+        'Accept': '*/*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,en-GB;q=0.6,da;q=0.5',
+        'Origin': 'https://fanqienovel.com',
+        'Referer': novel_url, # Keep the dynamic referer here
+        'Sec-Ch-Ua': '"Not;A=Brand";v="99", "Microsoft Edge";v="139", "Chromium";v="139"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0',
     }
 
     # If a token is provided, add it to the request cookies.
@@ -97,6 +167,7 @@ def download_chapter(url, novel_url, token=None):
         headers['Cookie'] = f'sessionid={token}'
 
     response = requests.get(url=url, headers=headers)
+    response.encoding = 'utf-8'  # Explicitly set encoding
     html = response.text
 
     selector = parsel.Selector(html)

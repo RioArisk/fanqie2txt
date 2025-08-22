@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, Response, jsonify, url_for
-from main import download_chapter, get_chapter_list, sanitize_filename
+from main import download_chapter, get_chapter_list, sanitize_filename, validate_novel_url
 import io
 import os
 import json
@@ -16,6 +16,16 @@ app.config['SERVER_NAME'] = '127.0.0.1:8080'
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/validate-url', methods=['POST'])
+def validate_url_endpoint():
+    data = request.get_json()
+    url = data.get('url')
+    if not url:
+        return jsonify({"status": "error", "message": "URL is required"}), 400
+
+    result = validate_novel_url(url)
+    return jsonify(result)
 
 @app.route('/download_stream')
 def download_stream():
@@ -58,7 +68,12 @@ def download_stream():
                 title, content = download_chapter(chapter['url'], url, token=token)
 
                 if content == "CAPTCHA":
-                    error_data = {"error": "CAPTCHA", "message": "检测到验证码，请在浏览器中验证后重试。"}
+                    captcha_url = chapter['url']
+                    error_data = {
+                        "error": "CAPTCHA", 
+                        "message": "检测到验证码，请在新标签页中完成验证后重试。",
+                        "url": captcha_url
+                    }
                     yield f"data: {json.dumps(error_data)}\n\n"
                     return
 
