@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, Response
 from main import download_chapter, get_chapter_list, sanitize_filename
 import io
+from urllib.parse import quote as url_quote
 
 app = Flask(__name__)
 
@@ -30,6 +31,10 @@ def download():
 
     for chapter in chapters_to_download:
         title, content = download_chapter(chapter['url'])
+
+        if content == "CAPTCHA":
+            return render_template('captcha.html')
+
         string_io.write(f"Title: {title}\n\n")
         string_io.write(content)
         string_io.write("\n\n---\n\n")
@@ -38,12 +43,13 @@ def download():
     full_content = string_io.getvalue()
 
     safe_filename = sanitize_filename(filename)
+    safe_filename_quoted = url_quote(safe_filename)
 
     return Response(
         full_content,
         mimetype="text/plain",
-        headers={"Content-disposition":
-                 f"attachment; filename=\"{safe_filename}\""}
+        headers={"Content-Disposition":
+                 f"attachment; filename*=UTF-8''{safe_filename_quoted}"}
     )
 
 if __name__ == '__main__':

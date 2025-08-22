@@ -95,6 +95,10 @@ def download_chapter(url):
 
     selector = parsel.Selector(html)
 
+    # Check for captcha page
+    if "验证码中间页" in selector.css('title::text').get():
+        return None, "CAPTCHA"
+
     title = selector.css('.muye-reader-title::text').get()
 
     content_list = selector.css('.muye-reader-content p::text').getall()
@@ -114,7 +118,7 @@ def download_chapter(url):
 
 if __name__ == '__main__':
     # Example usage:
-    novel_url = "https://fanqienovel.com/page/7276384138653862966"
+    novel_url = "https://fanqienovel.com/page/7207072067127086118"
     novel_name, chapters = get_chapter_list(novel_url)
 
     print(f"Novel: {novel_name}")
@@ -124,11 +128,14 @@ if __name__ == '__main__':
     if chapters:
         title, content = download_chapter(chapters[0]['url'])
 
-        print(f"\nDownloading chapter: {title}")
+        if content == "CAPTCHA":
+            print("Captcha detected. Please solve it in your browser.")
+        else:
+            print(f"\nDownloading chapter: {title}")
 
-        safe_title = sanitize_filename(title)
+            safe_title = sanitize_filename(title)
 
-        with open(f"{safe_title}.txt", "w", encoding="utf-8") as f:
-            f.write(content)
+            with open(f"{safe_title}.txt", "w", encoding="utf-8") as f:
+                f.write(content)
 
-        print(f"Successfully downloaded and saved '{safe_title}.txt'")
+            print(f"Successfully downloaded and saved '{safe_title}.txt'")
