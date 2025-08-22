@@ -53,7 +53,7 @@ def sanitize_filename(filename):
     """
     return re.sub(r'[\\/*?:"<>|]', "", filename)
 
-def get_chapter_list(novel_url):
+def get_chapter_list(novel_url, token=None):
     """
     Gets the list of chapters and their URLs from a novel's main page.
     """
@@ -82,13 +82,19 @@ def get_chapter_list(novel_url):
 
     return novel_name, chapter_list
 
-def download_chapter(url):
+def download_chapter(url, novel_url, token=None):
     """
-    Downloads a single chapter from fanqienovel.com and returns the de-obfuscated content.
+    Downloads a single chapter by scraping the public webpage.
+    If a token is provided, it's used as a cookie to potentially bypass captchas or access restricted content.
     """
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer': novel_url
     }
+
+    # If a token is provided, add it to the request cookies.
+    if token:
+        headers['Cookie'] = f'sessionid={token}'
 
     response = requests.get(url=url, headers=headers)
     html = response.text
@@ -102,6 +108,7 @@ def download_chapter(url):
     title = selector.css('.muye-reader-title::text').get()
 
     content_list = selector.css('.muye-reader-content p::text').getall()
+
     obfuscated_content = '\n'.join(content_list)
 
     deobfuscation_dict = get_deobfuscation_dict()
@@ -126,7 +133,7 @@ if __name__ == '__main__':
 
     # Download the first chapter
     if chapters:
-        title, content = download_chapter(chapters[0]['url'])
+        title, content = download_chapter(chapters[0]['url'], novel_url)
 
         if content == "CAPTCHA":
             print("Captcha detected. Please solve it in your browser.")

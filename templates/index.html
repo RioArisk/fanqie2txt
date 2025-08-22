@@ -2,92 +2,276 @@
 <html>
 <head>
     <title>番茄小说下载器</title>
-    <style>
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+
         body {
-            font-family: sans-serif;
-            background-color: #f5f5f5;
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             color: #333;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
+
         .container {
             text-align: center;
-            background-color: #fff;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 40px 50px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 600px;
         }
+
         h1 {
-            font-size: 2em;
-            margin-bottom: 20px;
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 30px;
         }
+
         form {
             display: flex;
             flex-direction: column;
+            align-items: stretch;
+        }
+
+        label {
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #34495e;
+            margin-bottom: 8px;
+            text-align: left;
+        }
+
+        input[type="text"], input[type="number"] {
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border: 1px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .chapter-range {
+            display: flex;
+            gap: 20px;
             align-items: center;
         }
-        label {
-            font-size: 1.2em;
-            margin-bottom: 10px;
+
+        .chapter-range > div {
+            flex: 1;
         }
-        input[type="text"], input[type="number"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
         }
+
         input[type="submit"] {
-            background-color: #06c;
+            background-color: #3498db;
             color: #fff;
-            padding: 10px 20px;
+            padding: 12px 20px;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 1.2em;
-            transition: background-color 0.3s;
+            font-size: 1.1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            flex: 1;
         }
+
         input[type="submit"]:hover {
-            background-color: #0056b3;
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-        #download-message {
-            display: none;
+
+        #download-all-btn {
+            background-color: #2ecc71;
+        }
+
+        #download-all-btn:hover {
+            background-color: #27ae60;
+        }
+
+        .info-text {
+            margin-top: 25px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: none; /* Hidden by default */
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 8px;
             margin-top: 20px;
-            font-size: 1.2em;
-            color: #06c;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #3498db;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            font-weight: 500;
+            transition: width 0.4s ease;
+        }
+
+        #status-text {
+            display: none; /* Hidden by default */
+            margin-top: 10px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            .chapter-range, .button-group {
+                flex-direction: column;
+                gap: 10px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>番茄小说下载器</h1>
-        <form action="/download" method="post" onsubmit="showDownloadMessage()">
+        <form id="download-form">
             <label for="url">输入小说页面URL:</label>
-            <input type="text" id="url" name="url" size="100" value="https://fanqienovel.com/page/7207072067127086118"><br>
+            <input type="text" id="url" name="url" value="https://fanqienovel.com/page/7207072067127086118" required>
 
-            <label for="start_chapter">开始章节:</label>
-            <input type="number" id="start_chapter" name="start_chapter" min="1" value="1">
+            <label for="token">SVIP Token (可选):</label>
+            <input type="text" id="token" name="token" placeholder="输入你的SVIP Token">
 
-            <label for="end_chapter">结束章节:</label>
-            <input type="number" id="end_chapter" name="end_chapter" min="1" value="10">
-            <br>
+            <div class="chapter-range">
+                <div>
+                    <label for="start_chapter">开始章节:</label>
+                    <input type="number" id="start_chapter" name="start_chapter" min="1" value="1">
+                </div>
+                <div>
+                    <label for="end_chapter">结束章节:</label>
+                    <input type="number" id="end_chapter" name="end_chapter" min="1" value="10">
+                </div>
+            </div>
 
-            <input type="submit" name="download_type" value="下载范围" id="download-range-btn">
-            <input type="submit" name="download_type" value="下载全部" id="download-all-btn">
+            <div class="button-group">
+                <input type="submit" name="download_type" value="下载范围" id="download-range-btn">
+                <input type="submit" name="download_type" value="下载全部" id="download-all-btn">
+            </div>
         </form>
-        <p id="download-message" style="display: none;">下载中，请稍候...</p>
-        <p><b>注意:</b> 下载全本小说可能需要SVIP Token，此功能尚未完全实现，可能无法下载所有章节。</p>
+        <div class="progress-container" id="progress-container">
+            <div class="progress-bar" id="progress-bar">0%</div>
+        </div>
+        <p id="status-text">正在准备下载...</p>
+        <p class="info-text"><b>注意:</b> 提供Token（如sessionid）可以帮助绕过验证码或下载VIP章节。Token将被用作请求的Cookie。</p>
     </div>
 
     <script>
-        function showDownloadMessage() {
-            document.getElementById('download-message').style.display = 'block';
-            document.getElementById('download-range-btn').disabled = true;
-            document.getElementById('download-all-btn').disabled = true;
-        }
+        document.getElementById('download-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent the default form submission
+
+            const formData = new FormData(this);
+            const url = formData.get('url');
+            const token = formData.get('token');
+            const startChapter = formData.get('start_chapter');
+            const endChapter = formData.get('end_chapter');
+            
+            // Determine which button was clicked
+            const downloadType = event.submitter.value;
+
+            // UI elements
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            const statusText = document.getElementById('status-text');
+            const rangeBtn = document.getElementById('download-range-btn');
+            const allBtn = document.getElementById('download-all-btn');
+
+            // Reset and show progress UI
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            statusText.textContent = '正在连接服务器...';
+            progressContainer.style.display = 'block';
+            statusText.style.display = 'block';
+            rangeBtn.disabled = true;
+            allBtn.disabled = true;
+
+            // Construct the SSE URL
+            const sseUrl = `/download_stream?url=${encodeURIComponent(url)}&token=${encodeURIComponent(token)}&download_type=${encodeURIComponent(downloadType)}&start_chapter=${startChapter}&end_chapter=${endChapter}`;
+
+            const eventSource = new EventSource(sseUrl);
+
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+
+                if (data.error) {
+                    statusText.textContent = `错误: ${data.message}`;
+                    progressBar.style.backgroundColor = '#e74c3c'; // Red for error
+                    eventSource.close();
+                    resetUI();
+                    return;
+                }
+
+                if (data.status === 'completed') {
+                    statusText.textContent = '下载完成！正在准备文件...';
+                    progressBar.style.width = '100%';
+                    progressBar.textContent = '100%';
+                    progressBar.style.backgroundColor = '#2ecc71'; // Green for success
+
+                    // Trigger the download
+                    window.location.href = data.url;
+
+                    eventSource.close();
+                    setTimeout(resetUI, 3000);
+                } else {
+                    const percent = (data.current / data.total) * 100;
+                    progressBar.style.width = percent + '%';
+                    progressBar.textContent = `${Math.round(percent)}%`;
+                    statusText.textContent = `(${data.current}/${data.total}) ${data.message}`;
+                }
+            };
+
+            eventSource.onerror = function() {
+                statusText.textContent = '与服务器断开连接。请重试。';
+                progressBar.style.backgroundColor = '#e74c3c';
+                eventSource.close();
+                resetUI();
+            };
+
+            function resetUI() {
+                rangeBtn.disabled = false;
+                allBtn.disabled = false;
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    statusText.style.display = 'none';
+                    progressBar.style.backgroundColor = '#3498db'; // Reset color
+                }, 3000);
+            }
+        });
     </script>
 </body>
 </html>
