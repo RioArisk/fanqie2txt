@@ -51,14 +51,17 @@ def sanitize_filename(filename):
     """
     Removes invalid characters from a filename.
     """
+    if not filename:
+        return ""
     return re.sub(r'[\\/*?:"<>|]', "", filename)
 
-def get_chapter_list(novel_url, token=None):
+def get_chapter_list(novel_url):
     """
     Gets the list of chapters and their URLs from a novel's main page.
     """
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Cookie': 'sessionid=03455814da399b8709f1da0faa99839a'
     }
 
     response = requests.get(url=novel_url, headers=headers)
@@ -82,19 +85,14 @@ def get_chapter_list(novel_url, token=None):
 
     return novel_name, chapter_list
 
-def download_chapter(url, novel_url, token=None):
+def download_chapter(url):
     """
-    Downloads a single chapter by scraping the public webpage.
-    If a token is provided, it's used as a cookie to potentially bypass captchas or access restricted content.
+    Downloads a single chapter from fanqienovel.com and returns the de-obfuscated content.
     """
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Referer': novel_url
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Cookie': 'sessionid=03455814da399b8709f1da0faa99839a'
     }
-
-    # If a token is provided, add it to the request cookies.
-    if token:
-        headers['Cookie'] = f'sessionid={token}'
 
     response = requests.get(url=url, headers=headers)
     html = response.text
@@ -102,13 +100,13 @@ def download_chapter(url, novel_url, token=None):
     selector = parsel.Selector(html)
 
     # Check for captcha page
-    if "验证码中间页" in selector.css('title::text').get():
+    title_element = selector.css('title::text').get()
+    if title_element and "验证码中间页" in title_element:
         return None, "CAPTCHA"
 
     title = selector.css('.muye-reader-title::text').get()
 
     content_list = selector.css('.muye-reader-content p::text').getall()
-
     obfuscated_content = '\n'.join(content_list)
 
     deobfuscation_dict = get_deobfuscation_dict()
@@ -133,7 +131,7 @@ if __name__ == '__main__':
 
     # Download the first chapter
     if chapters:
-        title, content = download_chapter(chapters[0]['url'], novel_url)
+        title, content = download_chapter(chapters[0]['url'])
 
         if content == "CAPTCHA":
             print("Captcha detected. Please solve it in your browser.")
